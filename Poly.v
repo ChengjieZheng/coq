@@ -112,10 +112,10 @@ Fixpoint combine (X Y : Type) (lx : list X) (ly : list Y)
 
 Implicit Arguments combine [X Y].
 
-Fixpoint split (X Y: Type) (s : list (X * Y)) : (list X)*(list Y) :=
+Fixpoint split {X Y: Type} (s : list (X * Y)) : (list X)*(list Y) :=
 	match s with
 		| nil => (nil, nil)
-		| (x,y) :: tp => match split _ _ tp with
+		| (x,y) :: tp => match split tp with
 											| (lx, ly) => (x :: lx, y :: ly)
 										 end
 	end.
@@ -415,24 +415,24 @@ Proof.
 Qed.
 
 Theorem length_snoc' : forall (X : Type) (v : X)
-	(l : list X) (n : nat),
-		length l = n ->
-			length (snoc l v) = S n.
-Proof.
-	intros X v l. induction l as [| v' l'].
+(l : list X) (n : nat),
+	length l = n ->
+	length (snoc l v) = S n.
+	Proof.
+	intros X v l. induction l as [| v' l'].
 	Case "l = []". intros n eq. rewrite <- eq. reflexivity.
 	Case "l = v' :: l'". intros n eq. simpl. destruct n as [| n'].
-		SCase "n = O". inversion eq.
-		SCase "n = S n'".
-			assert(length (snoc l' v) = S n').
-				SSCase "Proof of assertion". apply IHl'.
-				inversion eq. reflexivity.
-			rewrite -> H. reflexivity.
+	SCase "n = 0". inversion eq.
+	SCase "n = S n'".
+	assert (length (snoc l' v) = S n').
+	SSCase "Proof of assertion". apply IHl'.
+	inversion eq. reflexivity.
+	rewrite -> H. reflexivity.
 	Qed.
 
-Theorem beq_nat_O_l : forall n,
-		true = beq_nat O n -> O = n.
-Proof.
+	Theorem beq_nat_O_l : forall n,
+	true = beq_nat O n -> O = n.
+	Proof.
 	intros n. destruct n.
 	reflexivity.
 	simpl.
@@ -440,3 +440,166 @@ Proof.
 	inversion contra.
 	Qed.
 
+Theorem beq_nat_O_r : forall n,
+	true = beq_nat n O -> O = n.
+Proof.
+	intros n.
+	induction n.
+	Case "n = O".
+		reflexivity.
+	Case "n = S n'".
+		simpl.
+		intros contra.
+		inversion contra.
+	Qed.
+
+Theorem double_injective : forall n m,
+	double n = double m ->
+		n = m.
+Proof.
+	intros n. induction n as [| n'].
+	Case "n = O".
+		simpl. intros m eq.
+		destruct m as [|m'].
+		SCase "m = O". reflexivity.
+		SCase "m = S m'". inversion eq.
+	Case "n = S n'". intros m eq. destruct m as [| m'].
+		SCase "m = O". inversion eq.
+		SCase "m = S m'".
+			assert(n' = m') as H.
+				SSCase "Proof of assertion". apply IHn'. inversion eq. reflexivity.
+			rewrite -> H. reflexivity.
+Qed.
+
+Theorem silly3' : forall (n : nat),
+	(beq_nat n (S (S (S (S (S O))))) = true ->
+	 	beq_nat (S (S n)) (S (S (S (S (S (S (S O))))))) = true) ->
+		true = beq_nat n (S (S (S (S (S O))))) ->
+			true = beq_nat (S (S n)) (S (S (S (S (S (S (S O))))))).
+Proof.
+	intros n eq H.
+	symmetry in H.
+	apply eq in H.
+	symmetry in H.
+	apply H.
+Qed.
+
+Theorem plus_n_n_injective : forall n m,
+					n + n = m + m ->
+						n = m.
+Proof.
+	intros n. induction n as [| n'].
+	Case "n = O".
+		simpl. intros m.
+		destruct m.
+			SCase "m = O".
+			reflexivity.
+			SCase "m = S m'".
+			simpl.
+			intros contra.
+			inversion contra.
+	Case "n = S n".
+		intros m.
+		destruct m.
+			SCase "m = O".
+			intros contra.
+			inversion contra.
+			SCase "m = S m'".
+			intros eq.
+			inversion eq.
+			rewrite <- plus_n_Sm in H0.
+			rewrite <- plus_n_Sm in H0.
+			inversion H0.
+			apply IHn' in H1.
+			rewrite -> H1.
+			reflexivity.
+	Qed.
+
+Theorem override_shadow : forall {X : Type} x1 x2 k1 k2 (f : nat -> X),
+	(override (override f k1 x2) k1 x1) k2 = (override f k1 x1) k2.
+Proof.
+	intros X x1 x2 k1 k2 f.
+	unfold override.
+	destruct (beq_nat k1 k2).
+	reflexivity.
+	reflexivity.
+	Qed.
+
+Theorem combine_split : forall (X : Type) (Y : Type) (l : list (X * Y)) (l1: list X) (l2: list Y),
+				split l = (l1, l2) -> combine l1 l2 = l.
+Proof.
+	intros X Y l.
+	induction l as [| x y].
+	Case "l = nil".
+		intros l1 l2.
+		intros eq.
+		simpl.
+		simpl in eq.
+		inversion eq.
+		reflexivity.
+	Case "l = ::".
+		intros l1 l2.
+		simpl.
+		destruct x.
+		destruct (split y).
+		simpl.
+		destruct l1.
+		SCase "l1 = []".
+			simpl.
+			induction l2.
+			SSCase "l2 = []".
+				intros contra.
+				inversion contra.
+			SSCase "l2 = ::".
+				intros contra.
+				inversion contra.
+		SCase "l1 = ::".
+			induction l2.
+			SSCase "l2 = []".
+				simpl.
+				intros contra.
+				inversion contra.
+			SSCase "l2 = ::".
+				simpl.
+				intros eq.
+				inversion eq.
+				simpl.
+				rewrite IHy.
+				reflexivity.
+				simpl.
+				rewrite H1.
+				rewrite H3.
+				reflexivity.
+Qed.
+
+Theorem split_combine : forall (X : Type) (Y : Type) (l1: list X) (l2: list Y),
+				length l1 = length l2 -> split (combine l1 l2) = (l1, l2).
+Proof.
+intros X Y.
+intros l1.
+induction l1.
+simpl.
+intros l2.
+induction l2.
+reflexivity.
+
+intros contra.
+inversion contra.
+
+destruct l2.
+simpl.
+intros contra.
+inversion contra.
+
+simpl.
+intros eq.
+inversion eq.
+apply IHl1 in H0.
+rewrite H0.
+reflexivity.
+Qed.
+
+Definition sillyfun1 (n : nat) : bool :=
+	 if beq_nat n (S (S (S O))) then true
+	 else if beq_nat n (S (S (S (S (S O))))) then true
+				else false.
