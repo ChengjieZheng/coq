@@ -603,3 +603,246 @@ Definition sillyfun1 (n : nat) : bool :=
 	 if beq_nat n (S (S (S O))) then true
 	 else if beq_nat n (S (S (S (S (S O))))) then true
 				else false.
+
+Theorem beq_equal : forall (a b : nat),
+		beq_nat a b = true ->
+			a = b.
+Proof.
+intros a.
+induction a.
+destruct b.
+reflexivity.
+
+intros contra.
+inversion contra.
+
+destruct b.
+intros contra.
+inversion contra.
+
+simpl.
+intros eq.
+apply IHa in eq.
+rewrite eq.
+reflexivity.
+Qed.
+
+Theorem override_same : forall {X : Type} x1 k1 k2 (f : nat->X),
+	f k1 = x1 ->
+		(override f k1 x1) k2 = f k2.
+Proof.
+	intros X x1 k1 k2 f eq.
+	unfold override.
+	remember (beq_nat k1 k2) as a.
+	destruct a.
+	rewrite <- eq.
+	symmetry in Heqa.
+	apply beq_equal in Heqa.
+	rewrite -> Heqa.
+	reflexivity.
+	reflexivity.
+	Qed.
+
+
+Theorem filter_exercise : forall (X : Type) (test : X -> bool)
+	(x : X) (l lf : list X),
+	filter _ test l = x :: lf ->
+		test x = true.
+Proof.
+intros X.
+intros test.
+intros x.
+induction l.
+simpl.
+intros lf.
+intros contra.
+inversion contra.
+
+simpl.
+remember (test x0) as a.
+destruct a.
+simpl.
+intros lf.
+intros eq.
+rewrite Heqa.
+inversion eq.
+reflexivity.
+
+intros lf.
+intros eq.
+apply IHl in eq.
+rewrite eq.
+reflexivity.
+Qed.
+
+Theorem trans_eq : forall {X:Type} (n m o : X),
+				n = m -> m = o -> n = o.
+Proof.
+	intros X n m o eq1 eq2. rewrite -> eq1. rewrite -> eq2.
+	reflexivity.
+Qed.
+
+Example trans_eq_example' : forall (a b c d e f : nat),
+				[a,b] = [c,d] ->
+				[c,d] = [e,f] ->
+				[a,b] = [e,f].
+Proof.
+	intros a b c d e f eq1 eq2.
+	apply trans_eq with (m := [c,d]). apply eq1. apply eq2.
+	Qed.
+
+Theorem trans_eq_exercise : forall (n m o p : nat),
+		m = (minustwo o) ->
+		(n + p) = m ->
+		(n + p) = (minustwo o).
+Proof.
+intros n m o p.
+intros eq1 eq2.
+rewrite eq2.
+rewrite <- eq1.
+reflexivity.
+Qed.
+
+Theorem beq_nat_trans : forall n m p,
+				true = beq_nat n m ->
+				true = beq_nat m p ->
+				true = beq_nat n p.
+Proof.
+intros n m p.
+intros eq1 eq2.
+symmetry  in eq1.
+symmetry  in eq2.
+apply beq_equal in eq1.
+apply beq_equal in eq2.
+rewrite eq1.
+rewrite <- eq2.
+apply beq_nat_refl.
+Qed.
+
+Theorem override_permute : forall {X:Type} x1 x2 k1 k2 k3 (f : nat->X),
+	false = beq_nat k2 k1 ->
+	(override (override f k2 x2) k1 x1) k3 = (override (override f k1 x1) k2 x2) k3.
+Proof.
+intros X x1 x2 k1 k2 k3 f.
+simpl.
+unfold override.
+remember (beq_nat k1 k3).
+remember (beq_nat k2 k3).
+destruct b.
+destruct b0.
+symmetry  in Heqb.
+symmetry  in Heqb0.
+apply beq_equal in Heqb.
+apply beq_equal in Heqb0.
+rewrite <- Heqb in Heqb0.
+assert (k2 = k1 -> true = beq_nat k2 k1).
+destruct k2.
+destruct k1.
+reflexivity.
+
+intros contra.
+inversion contra.
+
+destruct k1.
+intros contra.
+inversion contra.
+
+simpl.
+intros eq.
+inversion eq.
+symmetry .
+symmetry .
+apply beq_nat_refl.
+
+apply H in Heqb0.
+rewrite <- Heqb0.
+intros contra.
+inversion contra.
+
+intros eq.
+reflexivity.
+
+destruct b0.
+intros eq.
+reflexivity.
+
+intros eq.
+reflexivity.
+
+Qed.
+
+Definition fold_length {X : Type} (l : list X) : nat :=
+	fold (fun _ n => S n) l O.
+
+Example test_fold_length1 : fold_length [S (S (S (S O))), S (S (S (S (S (S (S O)))))), O] = S (S (S O)).
+Proof. reflexivity. Qed.
+
+Theorem fold_length_correct : forall X (l :list X),
+	fold_length l = length l.
+Proof.
+	intros X l.
+	unfold fold_length.
+	induction l.
+	Case "l = O".
+		reflexivity.
+	Case "l = ::".
+		simpl.
+		rewrite IHl.
+		reflexivity.
+	Qed.
+
+Definition fold_map {X Y: Type} (f : X -> Y) (l : list X) : list Y :=
+	fold (fun x total => (f x) :: total) l [].
+
+Theorem fold_map_correct : forall (X Y: Type) (f : X -> Y) (l : list X),
+	fold_map f l = map f l.
+Proof.
+	intros X Y f l.
+	unfold fold_map.
+	induction l.
+	reflexivity.
+	  
+	simpl.
+	rewrite IHl.
+	reflexivity.
+	Qed.
+
+Fixpoint forallb {X : Type} (f : X -> bool) (l : list X) :=
+	match l with
+		| nil => true
+		| x :: xs => andb (f x) (forallb f xs)
+	end.
+
+Fixpoint existsb {X : Type} (f : X -> bool) (l : list X) :=
+	match l with
+		| nil => false
+		| x :: xs => orb (f x) (existsb f xs)
+	end.
+
+Definition existsb2 {X : Type} (f: X -> bool) (l : list X) :=
+	negb (forallb (fun x => negb (f x)) l).
+
+Theorem existsb_correct : forall (X : Type) (f : X -> bool) (l : list X),
+		existsb f l = existsb2 f l.
+Proof.
+intros X f l.
+induction l.
+reflexivity.
+
+simpl.
+rewrite IHl.
+unfold existsb2.
+simpl.
+destruct (forallb (fun x0 : X => negb (f x0)) l).
+simpl.
+destruct (f x).
+reflexivity.
+
+reflexivity.
+
+destruct (f x).
+reflexivity.
+
+reflexivity.
+
+Qed.
