@@ -846,3 +846,30 @@ reflexivity.
 reflexivity.
 
 Qed.
+
+Theorem index_okx : forall (X:Type) (l : list X) (n : nat),
+		length l = n -> index X (S n) l = None.
+Proof.
+	intros X l.
+	induction l.
+	reflexivity.
+
+	intros n.
+	destruct n.
+	intros contra.
+	inversion contra.
+
+	intros eq.
+	inversion eq.
+	apply IHl.
+	reflexivity.
+Qed.
+
+Inductive mumble : Type :=
+  | a : mumble
+	| b : mumble -> nat -> mumble
+	| c : mumble.
+Inductive grumble (X:Type) : Type :=
+ | d : mumble -> grumble X
+ | e : X -> grumble X.
+
