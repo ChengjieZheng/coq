@@ -684,4 +684,806 @@ Proof.
 	apply IHR.
 Qed.
 
+Inductive list_merge: list nat -> list nat -> list nat -> Prop :=
+	| merge0 : forall m, list_merge m [] m
+	| merge1 : forall (m: list nat), list_merge [] m m
+	| merge2 : forall (a b : nat) (n m o : list nat), list_merge n m o -> list_merge (a :: n) (b :: m) (a :: b :: o).
+
+Theorem merge_t1 :
+	list_merge [(S O), O, (S (S (S O)))] [O, (S (S (S (S O))))] [(S O), O, O, (S (S (S (S O)))), (S (S (S O)))].
+Proof.
+	apply merge2.
+	apply merge2.
+	apply merge0. Qed.
+
+Theorem app_ass :forall {X: Type} (l1 l2 l3 : list X),
+	(l1 ++ l2) ++ l3 = l1 ++ (l2 ++ l3).
+Proof.
+	intros X l1 l2 l3. induction l1 as [| n l1'].
+	Case "l1 = nil".
+		reflexivity.
+	Case "l1 = cons n l1'".
+		simpl. rewrite -> IHl1'. reflexivity. Qed.
+
+Theorem app_cons_t : forall (l1 l2: list nat) (a : nat),
+	l2 ++ (a :: l1) = (l2 ++ [a]) ++ l1.
+Proof.
+intros l1 l2.
+generalize dependent l1.
+destruct l2.
+intros l1.
+intros a.
+simpl.
+reflexivity.
+
+intros l1 a.
+simpl.
+rewrite app_ass.
+reflexivity.
+Qed.
+
+
+Theorem filter_bad : forall (l l2 : list nat) (f : nat -> bool),
+	l2 <> [] -> ~(filter nat f l = l2 ++ l).
+Proof.
+induction l.
+intros l2.
+intros f.
+intros H2.
+simpl.
+unfold not in H2.
+unfold not.
+destruct l2.
+simpl.
+intros H.
+apply H2.
+reflexivity.
+
+intros H.
+inversion H.
+
+intros l2.
+intros f.
+intros H1.
+simpl.
+destruct (f x).
+simpl.
+intros H2.
+destruct l2.
+simpl in H2.
+inversion H2.
+assert (l = [] ++ l).
+simpl.
+reflexivity.
+
+rewrite H in H0.
+apply IHl in H0.
+apply H0.
+
+simpl.
+apply H1.
+
+simpl in H2.
+inversion H2.
+assert (l2 ++ n :: l = (l2 ++ [n]) ++ l).
+apply app_cons_t.
+
+rewrite H in H3.
+apply IHl in H3.
+apply H3.
+
+simpl.
+intros H4.
+destruct l2.
+inversion H4.
+
+inversion H4.
+
+assert (l2 ++ x :: l = (l2 ++ [x]) ++ l).
+apply app_cons_t.
+
+rewrite H.
+apply IHl.
+destruct l2.
+intros H2.
+inversion H2.
+
+intros H2.
+inversion H2.
+Qed.
+
+Theorem filter_theorem: forall (l l1 l2: list nat) (f : nat -> bool),
+	 list_merge l1 l2 l ->
+		 filter _ f l1 = l1 ->
+			 filter _ f l2 = [] ->
+				 filter _ f l = l1.
+Proof.
+ intros l l1 l2 f.
+ intros H.
+ induction H.
+ intros H.
+ intros H2.
+ apply H.
+
+ intros H1.
+ intros H2.
+ apply H2.
+
+ intros H1.
+ intros H2.
+ simpl.
+simpl in H1.
+simpl in H2.
+destruct (f a).
+simpl.
+destruct (f b).
+inversion H2.
+
+simpl.
+inversion H1.
+simpl.
+rewrite H3.
+assert (filter nat f o = n -> a :: filter nat f o = a :: n).
+intros HX.
+rewrite HX.
+reflexivity.
+
+apply H0.
+apply IHlist_merge.
+apply H3.
+
+apply H2.
+
+destruct (f b).
+inversion H2.
+assert (a :: n = [a] ++ n).
+simpl.
+reflexivity.
+
+rewrite H0 in H1.
+apply filter_bad in H1.
+inversion H1.
+
+intros H3.
+inversion H3.
+Qed.
+
+Inductive appears_in {X:Type} (a:X) : list X -> Prop :=
+	| ai_here : forall l, appears_in a (a::l)
+	| ai_later : forall b l, appears_in a l -> appears_in a (b::l).
+
+Theorem app_nil_end : forall {X:Type} (l : list X),
+	l ++ [] = l.
+Proof.
+	intros X l.
+	induction l.
+	Case "l = nil".
+		reflexivity.
+	Case "l = cons".
+		simpl. rewrite -> IHl. reflexivity. Qed.
+
+Lemma appears_in_app : forall {X:Type} (xs ys : list X) (x:X),
+	appears_in x (xs ++ ys) -> appears_in x xs \/ appears_in x ys.
+Proof.
+intros X.
+induction xs.
+simpl.
+intros ys x.
+intros H.
+right.
+apply H.
+
+simpl.
+destruct ys.
+intros x0.
+simpl.
+intros H.
+left.
+rewrite -> app_nil_end in H.
+apply H.
+
+intros x1.
+simpl.
+intros H1.
+inversion H1.
+simpl.
+left.
+apply ai_here.
+
+subst.
+apply IHxs in H0.
+inversion H0.
+left.
+apply ai_later.
+apply H.
+
+right.
+apply H.
+Qed.
+
+Lemma app_appears_in : forall {X:Type} (xs ys : list X) (x:X),
+	appears_in x xs \/ appears_in x ys -> appears_in x (xs ++ ys).
+Proof.
+	intros X.
+	induction xs.
+	simpl.
+	intros ys x H.
+	inversion H.
+	inversion H0.
+
+	apply H0.
+	simpl.
+	intros ys x0.
+	intros H.
+	inversion H.
+	inversion H0.
+	apply ai_here.
+
+	apply ai_later.
+	apply IHxs.
+	left.
+	apply H2.
+
+	apply ai_later.
+	apply IHxs.
+	right.
+	apply H0.
+Qed.
+
+Definition disjoint {X:Type} (l1 l2 : list X) :=
+	(forall a, appears_in a l1 -> ~(appears_in a l2)) /\ (forall a, appears_in a l2 -> ~(appears_in a l1)).
+
+Inductive no_repeats {X:Type} : list X -> Prop :=
+	| repeats_base : no_repeats []
+	| repeats_in : forall a l, no_repeats l -> ~(appears_in a l) -> no_repeats (a :: l).
+
+Theorem no_repeats1 :
+	no_repeats [S O, S (S O), S (S (S O)), S (S (S (S O)))].
+Proof.
+apply repeats_in.
+apply repeats_in.
+apply repeats_in.
+apply repeats_in.
+apply repeats_base.
+
+simpl.
+intros H.
+inversion H.
+
+intros H.
+inversion H.
+inversion H1.
+
+intros H.
+inversion H.
+inversion H1.
+inversion H4.
+
+intros H.
+inversion H.
+inversion H1.
+inversion H4.
+inversion H7.
+Qed.
+
+Theorem no_repeats2:
+	no_repeats [true].
+Proof.
+apply repeats_in.
+apply repeats_base.
+
+intros H.
+inversion H.
+Qed.
+
+Theorem disjoint_add: forall {X:Type} (l1 l2 : list X) (x : X),
+	disjoint (x :: l1) l2 -> disjoint l1 l2.
+Proof.
+intros X.
+destruct l1.
+simpl.
+intros l2 x.
+intros H.
+unfold disjoint.
+split.
+unfold disjoint in H.
+inversion H.
+intros a.
+intros H2.
+inversion H2.
+
+intros a.
+intros H2.
+intros H3.
+inversion H3.
+
+simpl.
+intros l2 x0.
+unfold disjoint.
+intros H.
+destruct l2.
+split.
+intros a.
+intros H1.
+intros H2.
+inversion H2.
+
+intros a.
+intros H1.
+inversion H1.
+
+split.
+intros a.
+inversion H.
+intros H2.
+apply H0.
+apply ai_later.
+apply H2.
+
+intros a.
+inversion H.
+intros H2.
+apply H1 in H2.
+unfold not in H2.
+intros H3.
+apply H2.
+apply ai_later.
+apply H3.
+
+Qed.
+
+Theorem app_cons : forall {X : Type} (l1 l2: list X) (a : X),
+	l2 ++ (a :: l1) = (l2 ++ [a]) ++ l1.
+Proof.
+intros X l1 l2.
+generalize dependent l1.
+destruct l2.
+intros l1.
+intros a.
+simpl.
+reflexivity.
+
+intros l1 a.
+simpl.
+rewrite app_ass.
+reflexivity.
+Qed.
+
+
+Theorem appears_diff : forall {X:Type} (l : list X) (a b: X),
+	~ appears_in a (b :: l) -> a <> b.
+Proof.
+intros X.
+intros l a b.
+intros H.
+intros H2.
+unfold not in H.
+apply H.
+rewrite H2.
+apply ai_here.
+Qed.
+
+Theorem appears_contra : forall {X : Type} (l : list X) (x : X),
+	appears_in x l -> ~ appears_in x l -> False.
+Proof.
+intros X.
+intros l x.
+intros H.
+intros H1.
+apply H1.
+apply H.
+Qed.
+
+Theorem appears_minus : forall {X:Type} (l : list X) (a b:X),
+		~ appears_in a (b :: l) -> ~ appears_in a l.
+Proof.
+intros X.
+destruct l.
+intros a b.
+intros H.
+intros H1.
+apply H.
+inversion H1.
+
+intros a b.
+simpl.
+intros H1.
+intros H2.
+apply H1.
+apply ai_later.
+apply H2.
+Qed.
+
+Theorem appears_add : forall {X:Type} (l : list X) (a b: X),
+	~ appears_in a l /\ a <> b -> ~ appears_in a (b :: l).
+Proof.
+intros X.
+destruct l.
+intros a b.
+simpl.
+intros H.
+inversion H.
+intros H2.
+apply H1.
+inversion H2.
+reflexivity.
+
+inversion H4.
+
+intros a b.
+simpl.
+intros H.
+inversion H.
+intros H2.
+inversion H2.
+apply H1 in H4.
+apply H4.
+
+subst.
+apply appears_contra in H4.
+apply H4.
+
+apply H0.
+Qed.
+
+Theorem appears_change : forall {X : Type} (l : list X) (x y: X),
+	~ appears_in y (x :: l) -> ~ appears_in y (l ++ [x]).
+Proof.
+intros X.
+induction l.
+intros x y H.
+apply H.
+
+intros x0 y.
+intros H.
+simpl.
+assert (~ appears_in y (x :: l)).
+apply appears_minus in H.
+apply H.
+
+assert (~ appears_in y l).
+apply appears_minus in H0.
+apply H0.
+
+assert (y <> x0).
+apply appears_diff in H.
+apply H.
+
+assert (y <> x).
+apply appears_diff in H0.
+apply H0.
+
+apply appears_add.
+split.
+apply IHl.
+assert (~ appears_in y l /\ y <> x0).
+split.
+apply H1.
+
+apply H2.
+
+apply appears_add in H4.
+apply H4.
+
+apply H3.
+Qed.
+
+Theorem not_appears_app : forall {X : Type} (l1 l2 : list X) (x : X),
+	~ appears_in x (l1 ++ l2) -> ~ appears_in x (l2 ++ l1).
+Proof.
+intros X.
+induction l1.
+intros l2 x.
+simpl.
+intros H.
+rewrite app_nil_end.
+apply H.
+
+intros l2 x0.
+simpl.
+intros H.
+rewrite app_cons.
+apply IHl1.
+apply appears_change in H.
+simpl in H.
+rewrite app_ass in H.
+apply H.
+Qed.
+
+Theorem no_appears_app : forall {X : Type} (l1 l2 : list X) (x : X),
+	~ appears_in x l1 -> ~ appears_in x l2 -> ~ appears_in x (l1 ++ l2).
+Proof.
+intros X.
+intros l1 l2.
+generalize dependent l1.
+induction l2.
+intros l1.
+intros x.
+simpl.
+intros H1 H2.
+rewrite app_nil_end.
+apply H1.
+
+intros l1 x0.
+intros H1 H2.
+apply not_appears_app.
+apply not_appears_app.
+rewrite app_cons.
+apply IHl2.
+apply not_appears_app.
+assert (x0 <> x).
+apply appears_diff in H2.
+apply H2.
+
+simpl.
+apply appears_add.
+split.
+apply H1.
+
+apply H.
+
+assert (~ appears_in x0 l2).
+apply appears_minus in H2.
+apply H2.
+
+apply H.
+Qed.
+
+Theorem disjoint_minus : forall {X:Type} (l1 l2 : list X) (a b : X),
+	disjoint (a :: l1) (b :: l2) -> disjoint l1 l2.
+Proof.
+intros X.
+intros l1 l2 a b.
+intros H.
+unfold disjoint in H.
+unfold disjoint.
+split.
+intros a0.
+intros H1.
+inversion H.
+assert (appears_in a0 (b :: l1)).
+apply ai_later.
+apply H1.
+
+assert (~ appears_in a0 (b :: l2)).
+apply H0.
+assert (appears_in a0 (a :: l1)).
+apply ai_later.
+apply H1.
+
+apply H4.
+
+assert (~ appears_in a0 l2).
+apply appears_minus in H4.
+apply H4.
+
+apply H5.
+
+intros a0.
+intros H0.
+inversion H.
+assert (appears_in a0 (b :: l2)).
+apply ai_later.
+apply H0.
+
+apply H2 in H3.
+apply appears_minus in H3.
+apply H3.
+Qed.
+
+Theorem disjoint_appears_in : forall {X:Type} (l1 l2 : list X) (a b : X),
+	disjoint (a :: l1) (b :: l2) -> (~ appears_in a l2) /\ (~ appears_in b l1 /\ a <> b).
+Proof.
+intros X l1 l2 a b.
+intros H.
+split.
+assert (disjoint l1 l2).
+apply disjoint_minus in H.
+apply H.
+
+unfold disjoint in H.
+unfold disjoint in H0.
+inversion H.
+inversion H0.
+apply appears_minus with b.
+apply H1.
+apply ai_here.
+
+split.
+assert (disjoint l1 l2).
+apply disjoint_minus in H.
+apply H.
+
+inversion H.
+inversion H0.
+apply appears_minus with a.
+apply H2.
+apply ai_here.
+
+inversion H.
+apply appears_diff with l2.
+apply H0.
+apply ai_here.
+Qed.
+
+Theorem appears_more : forall {X : Type} (l : list X) (a b : X),
+	appears_in a l -> appears_in a (b :: l).
+Proof.
+intros X.
+intros l a b.
+intros H.
+apply ai_later.
+apply H.
+Qed.
+
+Theorem disjoint_less : forall {X : Type} (l1 l2 : list X) (a : X),
+	disjoint (a :: l1) l2 -> disjoint l1 l2.
+Proof.
+intros X.
+intros l1 l2 a.
+intros H.
+inversion H.
+unfold disjoint.
+split.
+intros a0.
+intros H2.
+apply H0.
+apply appears_more.
+apply H2.
+
+intros a0.
+intros H2.
+apply appears_minus with a.
+apply H1.
+apply H2.
+Qed.
+
+Theorem no_exists_disjoint : forall {X : Type} (l1 l2 : list X) (x : X),
+ ~(appears_in x l1) -> disjoint (x :: l1) l2 -> ~(appears_in x (l1 ++ l2)).
+Proof.
+intros X l1 l2 x.
+intros H1.
+intros H2.
+apply no_appears_app.
+apply H1.
+  
+assert (disjoint l1 l2).
+apply disjoint_less in H2.
+apply H2.
+			  
+inversion H2.
+apply H0.
+apply ai_here.
+Qed.
+
+Theorem repeats_disjoint: forall {X:Type} (l1 l2 : list X),
+ no_repeats l1 -> no_repeats l2 ->
+ disjoint l1 l2 -> no_repeats (l1 ++ l2).
+Proof.
+ intros X.
+ induction l1.
+ intros l2.
+ intros H.
+ intros H1.
+ intros H2.
+ apply H1.
+ simpl.
+ intros l2.
+ intros H1.
+ intros H2.
+ intros H3.
+ apply repeats_in.
+ apply IHl1.
+ inversion H1.
+					    apply H4.
+							   
+							   apply H2.
+apply disjoint_add in H3.
+   apply H3.
+	 inversion H1.
+	   apply no_exists_disjoint.
+		    apply H5.
+				   
+				   apply H3.
+Qed.
+
+Inductive all (X : Type) (P : X -> Prop) : list X -> Prop :=
+	| all_base : all X P []
+	| all_inc : forall (l : list X) (x : X), P x -> all X P l -> all X P (x :: l).
+
+Theorem forallb_ok : forall {X:Type} (l : list X) (f : X -> bool),
+	all X (fun x => f x = true) l <-> forallb f l = true.
+Proof.
+intros X.
+induction l.
+intros f.
+unfold iff.
+split.
+intros H.
+simpl.
+reflexivity.
+
+intros H.
+apply all_base.
+
+intros f.
+unfold iff.
+split.
+intros H.
+simpl.
+inversion H.
+destruct (f x).
+simpl.
+apply IHl.
+apply H3.
+
+inversion H2.
+
+simpl.
+intros H.
+apply all_inc.
+destruct (f x).
+reflexivity.
+
+simpl in H.
+inversion H.
+
+apply IHl.
+destruct (f x).
+simpl in H.
+apply H.
+
+simpl in H.
+inversion H.
+Qed.
+
+Theorem O_le_n : forall n,
+	O <= n.
+Proof.
+induction n.
+apply le_n.
+
+apply le_S.
+apply IHn.
+Qed.
+
+Theorem n_le_m__Sn_le_Sm : forall n m,
+	n <= m -> S n <= S m.
+Proof.
+destruct n.
+induction m.
+intros H.
+apply le_n.
+
+intros H.
+apply le_S.
+apply IHm.
+apply O_le_n.
+
+induction m.
+intros H.
+inversion H.
+
+intros H.
+inversion H.
+apply le_n.
+
+apply le_S.
+apply IHm.
+apply H1.
+Qed.
+
+Theorem Sn_le_Sm__n_le_m : forall n m,
+	S n <= S m -> n <= m.
+Proof.
+	intros n m.
+	generalize dependent n.
+	induction m.
+	intros n.
+	intros H.
+	destruct n.
+	apply le_n.
+
+	inversion H.
+	inversion H1.
 
