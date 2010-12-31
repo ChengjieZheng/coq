@@ -1486,4 +1486,219 @@ Proof.
 
 	inversion H.
 	inversion H1.
+	intros n.
+	destruct n.
+	simpl.
+	intros H.
+	apply O_le_n.
 
+	intros H.
+	inversion H.
+	apply le_n.
+
+	simpl.
+	subst.
+	assert (S n <= m).
+	apply IHm in H1.
+	apply H1.
+
+	apply le_S.
+	apply H0.
+Qed.
+
+Theorem le_plus_1 : forall a b,
+		a <= a + b.
+Proof.
+intros a.
+intros b.
+generalize dependent a.
+induction b.
+simpl.
+intros a.
+simpl.
+rewrite plus_0_r.
+apply le_n.
+
+intros a.
+rewrite <- plus_n_Sm.
+apply le_S.
+apply IHb.
+Qed.
+
+Theorem le_less_one : forall n1 n2,
+	S n1 <= n2 -> n1 <= n2.
+Proof.
+induction n1.
+intros n2.
+intros H.
+apply O_le_n.
+
+intros n2.
+intros H.
+destruct n2.
+inversion H.
+
+apply n_le_m__Sn_le_Sm.
+apply IHn1.
+apply Sn_le_Sm__n_le_m in H.
+apply H.
+Qed.
+
+Theorem plus_lt : forall n1 n2 m,
+	n1 + n2 < m ->
+		n1 < m /\ n2 < m.
+Proof.
+induction n1.
+intros n2.
+simpl.
+intros m.
+split.
+unfold lt.
+destruct m.
+unfold lt in H.
+inversion H.
+
+simpl.
+unfold lt in H.
+apply n_le_m__Sn_le_Sm.
+apply O_le_n.
+
+apply H.
+
+intros n2 m.
+intros H.
+destruct m.
+inversion H.
+
+split.
+apply Sn_le_Sm__n_le_m in H.
+unfold lt.
+unfold lt in H.
+unfold lt in IHn1.
+apply n_le_m__Sn_le_Sm.
+apply IHn1 with n2.
+apply H.
+
+destruct n2.
+simpl in H.
+rewrite plus_0_r in H.
+unfold lt.
+apply n_le_m__Sn_le_Sm.
+apply O_le_n.
+
+apply n_le_m__Sn_le_Sm.
+destruct m.
+inversion H.
+inversion H1.
+
+apply IHn1.
+rewrite <- plus_n_Sm in H.
+unfold lt.
+unfold lt in H.
+apply Sn_le_Sm__n_le_m in H.
+apply le_less_one in H.
+simpl in H.
+apply H.
+Qed.
+
+Theorem lt_S : forall n m,
+	n < m ->
+		n < S m.
+Proof.
+induction n.
+intros m.
+intros H.
+unfold lt.
+unfold lt in H.
+apply n_le_m__Sn_le_Sm.
+apply O_le_n.
+
+intros m.
+unfold lt.
+intros H.
+unfold lt in IHn.
+destruct m.
+inversion H.
+
+apply n_le_m__Sn_le_Sm.
+apply le_less_one in H.
+apply H.
+Qed.									   
+
+Theorem ble_nat_true : forall n m,
+	ble_nat n m = true -> n <= m.
+Proof.
+induction n.
+intros m.
+simpl.
+intros H.
+apply O_le_n.
+
+intros m.
+simpl.
+destruct m.
+intros H.
+inversion H.
+
+intros H.
+apply n_le_m__Sn_le_Sm.
+apply IHn.
+apply H.
+Qed.
+
+Theorem ble_nat_n_Sn_false : forall n m,
+	ble_nat n (S m) = false ->
+		ble_nat n m = false.
+Proof.
+induction n.
+intros m.
+simpl.
+intros H.
+inversion H.
+
+intros m.
+simpl.
+destruct m.
+simpl.
+intros H.
+reflexivity.
+
+intros H.
+apply IHn.
+apply H.
+Qed.
+
+Theorem ble_nat_false : forall n m,
+	ble_nat n m = false -> ~(n <= m).
+Proof.
+intros n m.
+generalize dependent n.
+induction m.
+intros n.
+simpl.
+intros H.
+destruct n.
+simpl in H.
+inversion H.
+
+simpl in H.
+intros H1.
+inversion H1.
+
+destruct n.
+intros H.
+simpl.
+simpl in H.
+inversion H.
+
+simpl.
+intros H.
+simpl.
+intros H1.
+apply Sn_le_Sm__n_le_m in H1.
+unfold not in IHm.
+apply IHm with n.
+apply H.
+
+apply H1.
+Qed.
