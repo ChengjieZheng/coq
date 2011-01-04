@@ -1702,3 +1702,314 @@ apply H.
 
 apply H1.
 Qed.
+
+Lemma app_length : forall {X:Type} (l1 l2 : list X),
+	length (l1 ++ l2) = length l1 + length l2.
+Proof.
+intros X.
+induction l1.
+simpl.
+intros l2.
+auto.
+
+simpl.
+intros l2.
+assert (forall n1 n2, n1 = n2 -> S n1 = S n2).
+intros n1 n2.
+intros H1.
+rewrite H1.
+reflexivity.
+
+apply H.
+apply IHl1.
+Qed.
+
+Lemma appears_in_app_split : forall {X:Type} (x:X) (l:list X),
+	appears_in x l ->
+		exists l1, exists l2, l = l1 ++ (x :: l2).
+Proof.
+intros X.
+intros x.
+intros l.
+generalize dependent x.
+induction l.
+intros x.
+intros H.
+inversion H.
+
+intros x0.
+intros H.
+inversion H.
+simpl.
+subst.
+exists [].
+simpl.
+exists l.
+reflexivity.
+
+subst.
+apply IHl in H1.
+inversion H1.
+inversion H0.
+exists (x :: witness).
+simpl.
+exists witness0.
+rewrite H2.
+reflexivity.
+Qed.
+
+Inductive repeats {X:Type} : list X -> Prop :=
+	| repeats_new : forall l x, appears_in x l -> repeats (x::l)
+	| repeats_more : forall l x, repeats l -> repeats (x::l).
+
+Example repeats1 :
+	repeats [S O, O, S O].
+Proof.
+apply repeats_new.
+apply ai_later.
+apply ai_here.
+Qed.
+
+Example repeats2 :
+	~(repeats [true, false]).
+Proof.
+intros H.
+inversion H.
+subst.
+inversion H1.
+subst.
+inversion H2.
+
+subst.
+inversion H1.
+subst.
+inversion H2.
+
+subst.
+inversion H2.
+Qed.
+
+Theorem le_or : forall (a b : nat),
+	a <= b -> a < b \/ a = b.
+Proof.
+induction a.
+intros b.
+intros H1.
+unfold lt.
+inversion H1.
+right.
+reflexivity.
+
+subst.
+left.
+apply n_le_m__Sn_le_Sm in H.
+apply H.
+
+simpl.
+unfold lt.
+intros b.
+intros H1.
+destruct b.
+left.
+inversion H1.
+
+inversion H1.
+right.
+reflexivity.
+
+subst.
+left.
+apply n_le_m__Sn_le_Sm in H0.
+apply H0.
+Qed.
+
+Theorem le_O : forall (a : nat),
+	a <= O -> a = O.
+Proof.
+destruct a.
+intros H.
+reflexivity.
+
+intros H.
+inversion H.
+Qed.
+
+Theorem le_O_or_1 : forall (a : nat),
+	a <= S O -> a = O \/ a = (S O).
+Proof.
+destruct a.
+intros H.
+left.
+reflexivity.
+
+intros H.
+apply Sn_le_Sm__n_le_m in H.
+apply le_O in H.
+right.
+rewrite H.
+reflexivity.
+Qed.
+
+Theorem le_imp : forall (a : nat),
+	~ (S (S a) <= a).
+Proof.
+induction a.
+intros H.
+inversion H.
+
+intros H.
+apply Sn_le_Sm__n_le_m in H.
+generalize dependent H.
+unfold not in IHa.
+apply IHa.
+Qed.
+
+Theorem contra_le : forall (a b : nat),
+	a < b -> ~(b < a).
+Proof.
+induction a.
+intros b H1.
+intros H2.
+unfold lt in H2.
+unfold lt in H1.
+inversion H2.
+
+intros b.
+intros H1.
+intros H2.
+unfold not in IHa.
+apply IHa with b.
+apply le_less_one in H1.
+unfold lt.
+apply H1.
+
+unfold lt.
+unfold lt in H1.
+unfold lt in H2.
+apply Sn_le_Sm__n_le_m in H2.
+apply le_or in H2.
+inversion H2.
+unfold lt in H.
+apply H.
+
+rewrite H in H1.
+rewrite H.
+apply le_imp in H1.
+inversion H1.
+Qed.
+
+
+Theorem pige1 : forall {X:Type} (l1 l2 : list X) (x : X),
+	(forall x0, appears_in x0 (x :: l1) -> appears_in x0 l2) ->
+		length l1 <= S (length l2).
+Proof.
+intros X.
+induction l1.
+simpl.
+intros l2 x H1.
+apply O_le_n.
+
+simpl.
+intros l2 x0 H.
+assert
+((forall x1 : X, appears_in x1 (x0 :: x :: l1) -> appears_in x1 l2) ->
+ forall x1 : X, appears_in x1 (x :: l1) -> appears_in x0 l2).
+intros H1.
+intros x1.
+intros H2.
+apply H1.
+apply ai_here.
+
+assert
+((forall x1 : X, appears_in x1 (x0 :: x :: l1) -> appears_in x1 l2) ->
+ forall x1 : X, appears_in x1 (x :: l1) -> appears_in x1 l2).
+intros H1.
+intros x1.
+intros H2.
+apply H1.
+apply ai_later.
+apply H2.
+
+apply IHl1 in H1.
+apply n_le_m__Sn_le_Sm.
+admit.
+
+apply H.
+Qed.
+
+(*
+Theorem pigeonhole_principle : forall {X:Type} (l1 l2 : list X),
+	excluded_middle ->
+		(forall x, appears_in x l1 -> appears_in x l2) ->
+		length l2 < length l1 ->
+			repeats l1.
+Proof.
+	intros X l1.
+	induction l1.
+	intros l2 H.
+	intros H1.
+	destruct l2.
+	simpl.
+	intros H2.
+	inversion H2.
+
+	intros H2.
+	inversion H2.
+
+	intros l2.
+	intros H1.
+	unfold excluded_middle in H1.
+	intros H2.
+	intros H3.
+	unfold lt in H3.
+	simpl in H3.
+	apply repeats_more.
+	apply IHl1 with l2.
+	unfold excluded_middle.
+	apply H1.
+
+	intros x0.
+	intros H4.
+	apply H2.
+	apply appears_more.
+	apply H4.
+
+	unfold lt.
+	apply pige1 in H2.
+	apply le_less_one in H3.
+	apply contra_le in H2.
+	inversion H2.
+
+	apply contra_le in H3.
+	inversion H3.
+
+	apply H2.
+Qed.
+
+
+Definition nat_ind2 :
+	forall (P : nat -> Prop),
+		P O ->
+		P (S O) ->
+			(forall n : nat, P n -> P (S (S n))) ->
+			forall n : nat, P n :=
+			fun P => fun P0 => fun P1 => fun PSS =>
+				fix f (n:nat) := match n return P n with
+												 O => P0
+												 | S O => P1
+												 | S (S n') => PSS n' (f n')
+											end.
+
+Lemma even_ev' : forall n, even n -> ev n.
+Proof.
+	intros.
+	induction n as [ | | n'] using nat_ind2.
+	Case "even 0".
+		apply ev_0.
+	Case "even 1".
+		inversion H.
+	Case "even (S (S n'))".
+		apply ev_SS.
+		apply IHn'. unfold even. unfold even in H. simpl in H. apply H.
+Qed.
+*)
