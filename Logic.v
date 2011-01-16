@@ -629,7 +629,7 @@ Inductive next_even (n:nat) : nat -> Prop :=
 Inductive total_relation : nat -> nat -> Prop :=
 	total_relation1 : forall (n m:nat), total_relation n m.
 
-Inductive empty_relation (n:nat) : nat -> Prop := .
+Inductive empty_relation : nat -> nat -> Prop := .
 	
 Inductive R : nat -> nat -> nat -> Prop :=
 	| c1 : R O O O
@@ -1414,7 +1414,17 @@ simpl.
 inversion H.
 destruct (f x).
 simpl.
-apply IHl.
+unfold iff in IHl.
+   assert
+	     (forall f : X -> bool,
+				     all X (fun x : X => f x = true) l -> forallb f l = true).
+			     intros f0.
+					     intros H4.
+							     apply IHl in H4.
+									     apply H4.
+											     
+											     apply H4.
+
 apply H3.
 
 inversion H2.
@@ -1428,9 +1438,18 @@ reflexivity.
 simpl in H.
 inversion H.
 
-apply IHl.
+unfold iff in IHl.
+   assert
+	     (forall f : X -> bool,
+				     forallb f l = true -> all X (fun x : X => f x = true) l).
+			     intros f0.
+					     intros H1.
+							     apply IHl in H1.
+									     apply H1.
+
 destruct (f x).
 simpl in H.
+apply H0.
 apply H.
 
 simpl in H.
@@ -1576,8 +1595,11 @@ unfold lt.
 unfold lt in H.
 unfold lt in IHn1.
 apply n_le_m__Sn_le_Sm.
-apply IHn1 with n2.
-apply H.
+simpl in H.
+apply IHn1 in H.
+inversion H.
+apply H0.
+
 
 destruct n2.
 simpl in H.
@@ -1590,14 +1612,21 @@ apply n_le_m__Sn_le_Sm.
 destruct m.
 inversion H.
 inversion H1.
+simpl in H.
+assert (forall n2 m, n1 + n2 < m -> n2 < m).
+intros n3 m0.
+intros H1.
+apply IHn1 in H1.
+inversion H1.
+apply H2.
 
-apply IHn1.
+apply H0.
 rewrite <- plus_n_Sm in H.
-unfold lt.
+simpl in H.
+unfold lt in |- *.
 unfold lt in H.
 apply Sn_le_Sm__n_le_m in H.
 apply le_less_one in H.
-simpl in H.
 apply H.
 Qed.
 
@@ -1937,7 +1966,7 @@ admit.
 apply H.
 Qed.
 
-(*
+													(*
 Theorem pigeonhole_principle : forall {X:Type} (l1 l2 : list X),
 	excluded_middle ->
 		(forall x, appears_in x l1 -> appears_in x l2) ->
