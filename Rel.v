@@ -132,14 +132,17 @@ apply H.
 Qed.
 
 (*
+ TODO
 Theorem lt_trans'' :
 	transitive lt.
 Proof.
 	unfold lt. unfold transitive.
 	intros n m o Hnm Hmo.
 	induction o as [| o'].
-	inversion Hmo.
 	*)
+
+Definition symmetric {X: Type} (R: relation X) :=
+	forall a b : X, (R a b) -> (R b a).
 
 Definition antisymmetric {X : Type} (R: relation X) :=
 	forall a b : X, (R a b) -> (R b a) -> a = b.
@@ -169,8 +172,141 @@ reflexivity.
 apply H2.
 Qed.
 
+(*
+ TODO
 Theorem le_step : forall n m p,
 	n < m ->
 	n <= S p ->
 	n <= p.
 Proof.
+*)
+
+Definition equivalence {X:Type} (R: relation X) :=
+	(reflexive R) /\ (symmetric R) /\ (transitive R).
+
+Definition order {X:Type} (R: relation X) :=
+	(reflexive R) /\ (antisymmetric R) /\ (transitive R).
+
+Definition preorder {X:Type} (R: relation X) :=
+	(reflexive R) /\ (transitive R).
+
+Theorem le_order :
+	order le.
+Proof.
+	unfold order. split.
+	Case "refl". apply le_reflexive.
+	split.
+		Case "antisym". apply le_antisymmetric.
+		Case "transitive". apply le_trans. Qed.
+
+Inductive clos_refl_trans {A:Type} (R: relation A) : relation A :=
+	| rt_step : forall x y, R x y -> clos_refl_trans R x y
+	| rt_refl : forall x, clos_refl_trans R x x
+	| rt_trans : forall x y z,
+		clos_refl_trans R x y -> clos_refl_trans R y z -> clos_refl_trans R x z.
+
+Theorem next_nat_closure_is_le : forall n m,
+	(n <= m) <-> ((clos_refl_trans next_nat) n m).
+Proof.
+intros n m.
+split.
+intro H.
+induction H.
+apply rt_refl.
+
+apply rt_trans with m.
+apply IHle.
+
+apply rt_step.
+apply nn.
+
+intro H.
+induction H.
+inversion H.
+apply le_S.
+apply le_n.
+
+apply le_n.
+
+apply le_trans with y.
+apply IHclos_refl_trans1.
+
+apply IHclos_refl_trans2.
+Qed.																    
+
+Inductive refl_step_closure {X : Type} (R: relation X)
+											: X -> X -> Prop :=
+	| rsc_refl : forall (x : X), refl_step_closure R x x
+	| rsc_step : forall (x y z : X), R x y ->
+								refl_step_closure R y z ->
+								refl_step_closure R x z.
+
+Tactic Notation "rt_cases" tactic(first) ident(c) :=
+	first;
+	[ Case_aux c "rt_step" | Case_aux c "rt_refl" | Case_aux c "rt_trans" ].
+
+Tactic Notation "rsc_cases" tactic(first) ident(c) :=
+	  first;
+		  [ Case_aux c "rsc_refl" | Case_aux c "rsc_step" ].
+
+Theorem rsc_R : forall (X:Type) (R:relation X) (x y:X),
+				R x y -> refl_step_closure R x y.
+Proof.
+intros X R x y r.
+apply rsc_step with y.
+ apply r.
+  
+  apply rsc_refl.
+Qed.
+
+Theorem rsc_trans :
+	forall (X : Type) (R : relation X) (x y z : X),
+		refl_step_closure R x y ->
+			refl_step_closure R y z ->
+				refl_step_closure R x z.
+Proof.
+intros X.
+intros R x y z.
+intros H.
+induction H.
+intros H1.
+apply H1.
+
+intros H1.
+apply IHrefl_step_closure in H1.
+apply rsc_step with y.
+apply H.
+
+apply H1.
+Qed.
+
+Theorem rtc_rsc_coincide:
+	forall (X:Type) (R: relation X) (x y : X),
+		clos_refl_trans R x y <-> refl_step_closure R x y.
+Proof.
+intros X R x y.
+split.
+intros H.
+induction H.
+apply rsc_step with y.
+apply H.
+
+apply rsc_refl.
+
+apply rsc_refl.
+
+apply rsc_trans with y.
+apply IHclos_refl_trans1.
+
+apply IHclos_refl_trans2.
+
+intros H1.
+induction H1.
+apply rt_refl.
+
+apply rt_trans with y.
+apply rt_step.
+apply H.
+
+apply IHrefl_step_closure.
+Qed.
