@@ -787,3 +787,771 @@ Example ceval_even_test5 :
 	test_ceval (update empty_state X 0) ceval_even
 		= Some (0, 0, 0).
 Proof. reflexivity. Qed.
+
+Reserved Notation "cl '/' st '==>' st'" (at level 40, st at level 39).
+
+Inductive ceval : com -> state -> state -> Prop :=
+	| E_Skip : forall st,
+		SKIP / st ==> st
+	| E_Ass : forall st al n l,
+		aeval st al = n ->
+			(l ::= al) / st ==> (update st l n)
+	| E_Seq : forall c1 c2 st st' st'',
+		c1 / st ==> st' ->
+			c2 / st' ==> st'' ->
+				(c1 ; c2) / st ==> st''
+	| E_IfTrue : forall st st' b1 c1 c2,
+		beval st b1 = true ->
+			c1 / st ==> st' ->
+				(IFB b1 THEN c1 ELSE c2 FI) / st ==> st'
+	| E_IfFalse : forall st st' b1 c1 c2,
+		beval st b1 = false ->
+			c2 / st ==> st' ->
+				(IFB b1 THEN c1 ELSE c2 FI) / st ==> st'
+	| E_WhileEnd : forall b1 st c1,
+		beval st b1 = false ->
+			(WHILE b1 DO c1 END) / st ==> st
+	| E_WhileLoop : forall st st' st'' b1 c1,
+		beval st b1 = true ->
+			c1 / st ==> st' ->
+				(WHILE b1 DO c1 END) / st' ==> st'' ->
+					(WHILE b1 DO c1 END) / st ==> st''
+	
+	where "c1 '/' st '==>' st'" := (ceval c1 st st').
+
+Tactic Notation "ceval_cases" tactic(first) ident(c) :=
+	first;
+	[ Case_aux c "E_Skip" | Case_aux c "E_Ass" | Case_aux c "E_Seq"
+		| Case_aux c "E_IfTrue" | Case_aux c "E_IfFalse"
+		| Case_aux c "E_WhileEnd" | Case_aux c "E_WhileLoop" ].
+
+Example ceval_example1 :
+	(X ::= ANum 2;
+	 IFB BLe (AId X) (ANum 1)
+	 	THEN Y ::= ANum 3
+		ELSE Z ::= ANum 4
+	FI)
+	/ empty_state ==> (update (update empty_state X 2) Z 4).
+Proof.
+(* We must supply the intermediate state *)
+	apply E_Seq with (update empty_state X 2).
+	Case "assignment command".
+	apply E_Ass. reflexivity.
+	Case "if command".
+	apply E_IfFalse.
+	reflexivity.
+	apply E_Ass. reflexivity. Qed.
+
+Example ceval_example2:
+	(X ::= ANum 0; Y ::= ANum 1; Z ::= ANum 2) / empty_state ==>
+		(update (update (update empty_state X 0) Y 1) Z 2).
+Proof.
+apply E_Seq with (update empty_state X 0);
+try (apply E_Ass; reflexivity).
+	  
+apply E_Seq with (update (update empty_state X 0) Y 1);
+try (apply E_Ass; reflexivity).
+Qed.
+
+Theorem ceval_step__ceval : forall c st st',
+				(exists i, ceval_step st c i = Some st') ->
+					c / st ==> st'.
+Proof.
+intros c st st' H.
+inversion H as (i, E).
+clear H.
+generalize dependent st'.
+generalize dependent st.
+generalize dependent c.
+induction i as [| i'].
+ intros c st st' H.
+ inversion H.
+ 
+ intros c st st' H.
+ com_cases (destruct c) SCase; simpl in H; inversion H; subst; clear H.
+  apply E_Skip.
+  
+  apply E_Ass.
+  reflexivity.
+  
+  remember (ceval_step st c1 i')as r1 in *.
+  destruct r1.
+   apply E_Seq with s.
+    apply IHi'.
+    rewrite Heqr1 in |- *.
+    reflexivity.
+    
+    apply IHi'.
+    simpl in H1.
+    assumption.
+    
+   inversion H1.
+   
+  remember (beval st b)as r in *.
+  destruct r.
+   apply E_IfTrue.
+    rewrite Heqr in |- *.
+    reflexivity.
+    
+    apply IHi'.
+    assumption.
+    
+   apply E_IfFalse.
+    rewrite Heqr in |- *.
+    reflexivity.
+    
+    apply IHi'.
+    assumption.
+    
+  remember (beval st b)as r in *.
+  destruct r.
+   remember (ceval_step st c i')as r1 in *.
+   destruct r1.
+    apply E_WhileLoop with s.
+     rewrite Heqr in |- *.
+     reflexivity.
+     
+     apply IHi'.
+     rewrite Heqr1 in |- *.
+     reflexivity.
+     
+     apply IHi'.
+     simpl in H1.
+     assumption.
+     
+    inversion H1.
+    
+   inversion H1.
+   apply E_WhileEnd.
+   rewrite Heqr in |- *.
+   subst.
+   reflexivity.
+Qed.
+
+Theorem ceval_step_more: forall i1 i2 st st' c,
+	i1 <= i2 -> ceval_step st c i1 = Some st' ->
+		ceval_step st c i2 = Some st'.
+Proof.
+induction i1 as [| i1']; intros i2 st st' c Hle Hceval.
+inversion Hceval.
+
+destruct i2 as [| i2'].
+inversion Hle.
+
+assert (i1' <= i2') as Hle' by complete omega.
+com_cases (destruct c) SCase.
+SCase "SKIP".
+simpl in Hceval.
+inversion Hceval.
+reflexivity.
+
+SCase "::=".
+simpl in Hceval.
+inversion Hceval.
+reflexivity.
+
+SCase ";".
+simpl in Hceval.
+simpl in |- *.
+remember (ceval_step st c1 i1')as st1'o in *.
+destruct st1'o.
+SSCase "st1'o = Some".
+symmetry  in Heqst1'o.
+apply (IHi1' i2') in Heqst1'o; try assumption.
+rewrite Heqst1'o in |- *.
+simpl in |- *.
+simpl in Hceval.
+apply (IHi1' i2') in Hceval; try assumption.
+
+inversion Hceval.
+
+SCase "IFB".
+simpl in Hceval.
+simpl in |- *.
+remember (beval st b)as bval in *.
+destruct bval; apply (IHi1' i2') in Hceval; assumption.
+
+SCase "WHILE".
+simpl in Hceval.
+simpl in |- *.
+destruct (beval st b); try assumption.
+remember (ceval_step st c i1')as st1'o in *.
+destruct st1'o.
+SSCase "st1'o = Some".
+symmetry  in Heqst1'o.
+apply (IHi1' i2') in Heqst1'o; try assumption.
+rewrite Heqst1'o in |- *.
+simpl in |- *.
+simpl in Hceval.
+apply (IHi1' i2') in Hceval; try assumption.
+
+SSCase "i1'o = None".
+simpl in Hceval.
+inversion Hceval.
+Qed.
+
+Theorem ceval__ceval_step : forall c st st',
+				c / st ==> st' ->
+					exists i, ceval_step st c i = Some st'.
+Proof.
+	intros c st st' Hce.
+	ceval_cases (induction Hce) Case.
+	exists 1%nat.
+	simpl in |- *.
+	reflexivity.
+
+	simpl in |- *.
+	exists 1%nat.
+	simpl in |- *.
+	rewrite H in |- *.
+	reflexivity.
+	inversion IHHce1 as (x1).
+	inversion IHHce2 as (x2).
+	exists (S (x1 + x2)).
+	simpl in |- *.
+	assert (ceval_step st c1 (x1 + x2) = Some st').
+	apply ceval_step_more with x1.
+	omega.
+
+	assumption.
+
+	rewrite H1 in |- *.
+	simpl in |- *.
+	apply ceval_step_more with x2.
+	omega.
+
+	assumption.
+
+	inversion IHHce.
+	exists (S x).
+	simpl in |- *.
+	simpl in |- *.
+	rewrite H in |- *.
+	apply H0.
+
+	inversion IHHce.
+	exists (S x).
+	simpl in |- *.
+	simpl in |- *.
+	rewrite H in |- *.
+	assumption.
+
+	exists 1%nat.
+	simpl in |- *.
+	rewrite H in |- *.
+	reflexivity.
+
+	inversion IHHce1.
+	simpl in |- *.
+	inversion IHHce2.
+	exists (S (x + x0)).
+	simpl in |- *.
+	simpl in |- *.
+	rewrite H in |- *.
+	assert (ceval_step st c1 (x + x0) = Some st').
+	apply ceval_step_more with x.
+	omega.
+
+	assumption.
+
+	rewrite H2 in |- *.
+	simpl in |- *.
+	apply ceval_step_more with x0.
+	omega.
+
+	assumption.
+Qed.
+
+Theorem ceval_and_ceval_step_coincide: forall c st st',
+				c / st ==> st' <-> exists i, ceval_step st c i = Some st'.
+Proof.
+	intros c st st'.
+	split. apply ceval__ceval_step. apply ceval_step__ceval.
+Qed.
+
+Theorem ceval_deterministic : forall c st st1 st2,
+	c / st ==> st1 ->
+		c / st ==> st2 ->
+			st1 = st2.
+Proof.
+intros c st st1 st2 He1 He2.
+apply ceval__ceval_step in He1.
+apply ceval__ceval_step in He2.
+inversion He1 as (i1, E1).
+inversion He2 as (i2, E2).
+apply ceval_step_more with (i2 := i1 + i2) in E1.
+apply ceval_step_more with (i2 := i1 + i2) in E2.
+rewrite E1 in E2.
+inversion E2.
+reflexivity.
+
+omega.
+
+omega.
+Qed.
+
+Theorem plus2_spec : forall st n st',
+	st X = n ->
+		plus2 / st ==> st' ->
+			st' X = n + 2.
+Proof.
+intros st n st' HX Heval.
+inversion Heval.
+subst.
+apply update_eq.
+Qed.
+
+
+Theorem XtimesYinZ_spec : forall st nx ny st',
+		st X = nx ->
+			st Y = ny ->
+				XtimesYinZ / st ==> st' ->
+					st' Z = nx * ny.
+Proof.
+intros st nx ny st' H1 H2 Heval.
+inversion Heval.
+subst.  simpl.
+apply update_eq.
+Qed.
+
+Theorem loop_never_stops : forall st st',
+	~(loop / st ==> st').
+Proof.
+	intros st st' contra. unfold loop in contra.
+	remember (WHILE BTrue DO SKIP END) as loopdef.
+	induction contra.
+	simpl in Heqloopdef.
+	inversion Heqloopdef.
+
+	inversion Heqloopdef.
+
+	inversion Heqloopdef.
+
+	inversion Heqloopdef.
+
+	inversion Heqloopdef.
+
+	inversion Heqloopdef.
+	subst.
+	simpl in H.
+	inversion H.
+
+	inversion Heqloopdef.
+	subst.
+	inversion contra1.
+	subst.
+	apply IHcontra2.
+	reflexivity.
+Qed.
+
+Fixpoint no_whiles (c : com) : bool :=
+	match c with
+		| SKIP => true
+		| _ ::= _ => true
+		| c1 ; c2 => andb (no_whiles c1) (no_whiles c2)
+		| IFB _ THEN ct ELSE cf FI => andb (no_whiles ct) (no_whiles cf)
+		| WHILE _ DO _ END => false
+	end.
+
+Inductive no_Whiles : com -> Prop :=
+	| noWhilesSKIP : no_Whiles (SKIP)
+	| noWhilesAss : forall a1 a2, no_Whiles (a1 ::= a2)
+	| noWhilesSeq : forall (a1 a2 : com), no_Whiles a1 -> no_Whiles a2 -> no_Whiles (a1 ; a2)
+	| noWhilesIf : forall (b : bexp) (a1 a2 : com),
+										no_Whiles a1 -> no_Whiles a2 ->
+												no_Whiles (IFB b THEN a1 ELSE a2 FI).
+
+Theorem no_whiles_eqv:
+	forall c, no_whiles c = true <-> no_Whiles c.
+Proof.
+split.
+induction c.
+intros H.
+apply noWhilesSKIP.
+
+simpl in |- *.
+intros H.
+apply noWhilesAss.
+
+intros H.
+apply noWhilesSeq.
+apply IHc1.
+simpl in H.
+simpl in H.
+auto.
+eauto   .
+apply andb_true_elim1 in H.
+apply H.
+
+apply IHc2.
+simpl in H.
+apply andb_true_elim2 in H.
+assumption.
+
+simpl in |- *.
+intros H.
+apply noWhilesIf.
+apply andb_true_elim1 in H.
+apply IHc1.
+assumption.
+
+apply IHc2.
+apply andb_true_elim2 in H.
+assumption.
+
+simpl in |- *.
+intros contra.
+inversion contra.
+
+intros H.
+induction H.
+simpl in |- *.
+reflexivity.
+
+reflexivity.
+
+simpl in |- *.
+assert (no_whiles a1 = true /\ no_whiles a2 = true).
+split.
+assumption.
+
+assumption.
+
+eauto   .
+auto.
+apply andb_true_intro.
+apply H1.
+
+simpl in |- *.
+assert (no_whiles a1 = true /\ no_whiles a2 = true).
+split.
+assumption.
+
+assumption.
+
+apply andb_true_intro.
+assumption.
+Qed.
+
+Theorem no_whiles_terminate : forall (c : com) (st:state),
+	no_whiles c = true ->
+		exists i, exists st', ceval_step st c i = Some st'.
+Proof.
+induction c.
+intros st.
+simpl in |- *.
+intros H.
+exists 1%nat.
+exists st.
+reflexivity.
+
+simpl in |- *.
+intros st.
+intros H.
+exists 1%nat.
+simpl in |- *.
+exists (update st i (aeval st a)).
+reflexivity.
+
+intros st.
+intros H.
+inversion H.
+assert (no_whiles c1 = true).
+apply andb_true_elim1 in H1.
+assumption.
+
+assert (no_whiles c2 = true).
+apply andb_true_elim2 in H1.
+assumption.
+
+apply IHc1 with st in H0.
+inversion H0.
+inversion H3.
+apply IHc2 with x0 in H2.
+inversion H2.
+inversion H5.
+exists (S (x + x1)).
+exists x2.
+simpl in |- *.
+remember (ceval_step st c1 (x + x1))as r in *.
+destruct r.
+symmetry  in Heqr.
+assert (x <= x + x1).
+omega.
+
+simpl in |- *.
+apply ceval_step_more with x1.
+omega.
+
+apply ceval_step_more with (i2 := x + x1) in H4.
+assert (Some x0 = Some s).
+auto.
+eauto   .
+rewrite <- Heqr in |- *.
+rewrite <- H4 in |- *.
+reflexivity.
+
+inversion H8.
+rewrite <- H10 in |- *.
+assumption.
+
+omega.
+
+simpl in |- *.
+assert (x <= x + x1).
+omega.
+
+apply ceval_step_more with (i2 := x + x1) in H4.
+rewrite H4 in Heqr.
+inversion Heqr.
+
+omega.
+
+intros st.
+simpl in |- *.
+intros H1.
+simpl in |- *.
+assert (no_whiles c1 = true).
+apply andb_true_elim1 in H1.
+assumption.
+
+assert (no_whiles c2 = true).
+apply andb_true_elim2 in H1.
+assumption.
+
+apply IHc1 with st in H.
+apply IHc2 with st in H0.
+inversion H.
+inversion H0.
+exists (S (x + x0)).
+simpl in |- *.
+destruct (beval st b).
+inversion H2.
+exists x1.
+apply ceval_step_more with x.
+omega.
+
+assumption.
+
+inversion H3.
+exists x1.
+apply ceval_step_more with x0.
+omega.
+
+assumption.
+
+intros st H.
+inversion H.
+Qed.
+
+Fixpoint beval_short_circuit (st : state) (e: bexp) : bool :=
+	match e with
+		| BTrue => true
+		| BFalse => false
+		| BEq a1 a2 => beq_nat (aeval st a1) (aeval st a2)
+		| BLe a1 a2 => ble_nat (aeval st a1) (aeval st a2)
+		| BNot b1 => negb (beval_short_circuit st b1)
+		| BAnd b1 b2 => match (beval_short_circuit st b1) with
+											| true => (beval st b2)
+											| false => false
+									  end
+	end.
+
+Theorem beval_short_circuit_eqv : forall (e : bexp) (st : state),
+	beval st e = beval_short_circuit st e.
+Proof.
+induction e.
+intros st.
+simpl in |- *.
+reflexivity.
+
+reflexivity.
+
+simpl in |- *.
+reflexivity.
+
+reflexivity.
+
+intros st.
+simpl in |- *.
+rewrite IHe in |- *.
+reflexivity.
+
+simpl in |- *.
+intros st.
+rewrite IHe1 in |- *.
+rewrite IHe2 in |- *.
+destruct (beval_short_circuit st e1).
+simpl in |- *.
+reflexivity.
+
+reflexivity.
+Qed.
+		
+Inductive sinstr : Type :=
+	| SPush : nat -> sinstr
+	| SLoad : id -> sinstr
+	| SPlus : sinstr
+	| SMinus : sinstr
+	| SMult : sinstr.
+
+Fixpoint s_execute (st : state) (stack : list nat) (prog : list sinstr)
+		: list nat :=
+match ( prog ) with
+| [] =>stack
+|a :: l
+  => match (a) with
+   | SPush n => s_execute st (cons n stack) l
+   | SLoad i => s_execute st (cons (st i) stack) l
+   | SPlus  => match stack with
+              |[]=>nil
+              |a :: al'=> match al' with
+                         |[]=>nil
+                         |b :: bl'=>s_execute st (cons (a+b) bl') l
+                         end
+              end
+   | SMinus =>  match stack with 
+              |[]=>nil
+              |a :: al'=> match al' with
+                         |[]=>nil
+                         |b :: bl'=>s_execute st (cons (b-a) bl') l
+                         end
+              end
+   | SMult => match stack with 
+              |[]=>nil
+              |a :: al'=> match al' with
+                         |[]=>nil
+                         |b :: bl'=>s_execute st (cons (a*b) bl') l
+                         end
+              end 
+   end
+end.
+
+Example s_execute1 :
+	s_execute empty_state [] [SPush 5, SPush 3, SPush 1, SMinus] = [2, 5].
+Proof. reflexivity. Qed.
+
+Example s_execute2:
+	s_execute (update empty_state X 3) [3,4] [SPush 4, SLoad X, SMult, SPlus ]
+		= [15, 4].
+Proof. reflexivity. Qed.
+
+Fixpoint s_compile (e : aexp) : list sinstr :=
+	match e with
+		| ANum v => [SPush v]
+		| AId i => [SLoad i]
+		| APlus a1 a2 => (s_compile a1) ++ (s_compile a2) ++ [SPlus]
+		| AMinus a1 a2 => (s_compile a1) ++ (s_compile a2) ++ [SMinus]
+		| AMult a1 a2 => (s_compile a1) ++ (s_compile a2) ++ [SMult]
+	end.
+
+Example s_compile1 :
+	s_compile (AMinus (AId X) (AMult (ANum 2) (AId Y))) =
+		[SLoad X, SPush 2, SLoad Y, SMult, SMinus].
+Proof. reflexivity. Qed.
+
+Theorem execute_theorem : forall (e : aexp) (st : state) (s1 : list nat) (other : list sinstr),
+		s_execute st s1 (s_compile e ++ other) =
+				s_execute st ((aeval st e) :: s1) other.
+Proof.
+induction e; try reflexivity.
+simpl in |- *.
+intros st s1 other.
+assert
+((s_compile e1 ++ s_compile e2 ++ [SPlus]) ++ other =
+ s_compile e1 ++ s_compile e2 ++ [SPlus] ++ other).
+rewrite -> app_ass.
+rewrite -> app_ass.
+reflexivity.
+
+rewrite H in |- *.
+assert
+(s_execute st s1 (s_compile e1 ++ s_compile e2 ++ SPlus :: other) =
+ s_execute st (aeval st e1 :: s1) (s_compile e2 ++ SPlus :: other)).
+apply IHe1.
+
+simpl in |- *.
+rewrite H0 in |- *.
+assert
+(s_execute st (aeval st e1 :: s1) (s_compile e2 ++ SPlus :: other) =
+ s_execute st (aeval st e2 :: aeval st e1 :: s1) (SPlus :: other)).
+apply IHe2.
+
+rewrite H1 in |- *.
+simpl in |- *.
+rewrite plus_comm in |- *.
+reflexivity.
+
+intros st s1 other.
+assert
+(s_execute st s1 (s_compile e1 ++ s_compile e2 ++ SMinus :: other) =
+ s_execute st (aeval st e1 :: s1) (s_compile e2 ++ SMinus :: other)).
+apply IHe1.
+
+simpl in |- *.
+assert
+((s_compile e1 ++ s_compile e2 ++ [SMinus]) ++ other =
+ s_compile e1 ++ s_compile e2 ++ [SMinus] ++ other).
+rewrite -> app_ass.
+rewrite -> app_ass.
+reflexivity.
+
+simpl in |- *.
+rewrite H0 in |- *.
+simpl in |- *.
+rewrite H in |- *.
+assert
+(s_execute st (aeval st e1 :: s1) (s_compile e2 ++ SMinus :: other) =
+ s_execute st (aeval st e2 :: aeval st e1 :: s1) (SMinus :: other)).
+apply IHe2.
+
+rewrite H1 in |- *.
+simpl in |- *.
+reflexivity.
+
+intros st s1 other.
+simpl in |- *.
+simpl in |- *.
+assert
+((s_compile e1 ++ s_compile e2 ++ [SMult]) ++ other =
+ s_compile e1 ++ s_compile e2 ++ [SMult] ++ other).
+rewrite -> app_ass.
+rewrite -> app_ass.
+reflexivity.
+
+rewrite H in |- *.
+simpl in |- *.
+assert
+(s_execute st s1 (s_compile e1 ++ s_compile e2 ++ SMult :: other) =
+ s_execute st (aeval st e1 :: s1) (s_compile e2 ++ SMult :: other)).
+apply IHe1.
+
+rewrite H0 in |- *.
+assert
+(s_execute st (aeval st e1 :: s1) (s_compile e2 ++ SMult :: other) =
+ s_execute st (aeval st e2 :: aeval st e1 :: s1) (SMult :: other)).
+apply IHe2.
+
+rewrite H1 in |- *.
+simpl in |- *.
+rewrite mult_comm in |- *.
+reflexivity.
+Qed.
+
+Theorem s_compile_correct : forall (st : state) (e : aexp),
+				s_execute st [] (s_compile e) = [ aeval st e].
+Proof.
+intros st e.
+assert ([aeval st e] = s_execute st [aeval st e] []).
+simpl in |- *.
+reflexivity.
+
+rewrite H in |- *.
+assert (s_compile e ++ [] = s_compile e).
+simpl in |- *.
+rewrite -> app_nil_end.
+reflexivity.
+
+rewrite <- H0 in |- *.
+apply execute_theorem.
+Qed.
