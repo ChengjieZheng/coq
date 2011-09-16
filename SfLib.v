@@ -104,6 +104,39 @@ Proof.
 (* An exercise in Logic.v *)
 Admitted.
 
+Theorem beq_false_not_eq : forall n m,
+	false = beq_nat n m -> n <> m.
+Proof.
+induction n.
+destruct m.
+intros H.
+inversion H.
+
+simpl.
+intros H.
+unfold not.
+intros H2.
+inversion H2.
+
+destruct m.
+simpl.
+intros H1.
+unfold not.
+intros H2.
+inversion H2.
+
+simpl.
+intros H.
+apply IHn in H.
+unfold not in H.
+unfold not.
+intros H2.
+inversion H2.
+apply H.
+rewrite H1.
+reflexivity.
+Qed.
+
 Theorem ex_falso_quodlibet : forall (P:Prop),
   False -> P.
 Proof.
