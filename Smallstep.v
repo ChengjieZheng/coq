@@ -21,30 +21,30 @@ End SimpleArith0.
 
 Module SimpleArith1.
 
-Reserved Notation " t '==>' n " (at level 50, left associativity).
+Reserved Notation " t '===>' n " (at level 50, left associativity).
 
 Inductive eval : tm -> nat -> Prop :=
    | E_Const : forall n,
-                  tm_const n ==> n
+                  tm_const n ===> n
    | E_Plus : forall t1 t2 n1 n2,
-                  t1 ==> n1 ->
-                  t2 ==> n2 ->
-                  tm_plus t1 t2 ==> plus n1 n2
+                  t1 ===> n1 ->
+                  t2 ===> n2 ->
+                  tm_plus t1 t2 ===> plus n1 n2
 
-     where " t '==>' n " := (eval t n).
+     where " t '===>' n " := (eval t n).
 
 End SimpleArith1.
 
-Reserved Notation " t '==>' t' " (at level 50, left associativity).
+Reserved Notation " t '===>' t' " (at level 50, left associativity).
 
 Inductive eval : tm -> tm -> Prop :=
    | E_Const : forall n1,
-      tm_const n1 ==> tm_const n1
+      tm_const n1 ===> tm_const n1
    | E_Plus : forall t1 n1 t2 n2,
-      t1 ==> tm_const n1 ->
-      t2 ==> tm_const n2 ->
-         tm_plus t1 t2 ==> tm_const (plus n1 n2)
-   where " t '==>' t' " := (eval t t').
+      t1 ===> tm_const n1 ->
+      t2 ===> tm_const n2 ->
+         tm_plus t1 t2 ===> tm_const (plus n1 n2)
+   where " t '===>' t' " := (eval t t').
 
 Tactic Notation "eval_cases" tactic(first) ident(c) :=
    first;
@@ -295,22 +295,22 @@ Module Temp2.
 Inductive value : tm -> Prop :=
    | v_const : forall n, value (tm_const n).
 
-(*Reserved Notation " t '==>' t' " (at level 40).*)
+(*Reserved Notation " t '===>' t' " (at level 40).*)
 
 Inductive step : tm -> tm -> Prop :=
   | ST_Funny : forall n, (* <---- *)
-      tm_const n ==> tm_plus (tm_const n) (tm_const 0)
+      tm_const n ===> tm_plus (tm_const n) (tm_const 0)
   | ST_PlusConstConst : forall n1 n2,
-      tm_plus (tm_const n1) (tm_const n2) ==> tm_const (plus n1 n2)
+      tm_plus (tm_const n1) (tm_const n2) ===> tm_const (plus n1 n2)
   | ST_Plus1 : forall t1 t1' t2,
-      t1 ==> t1' ->
-      tm_plus t1 t2 ==> tm_plus t1' t2
+      t1 ===> t1' ->
+      tm_plus t1 t2 ===> tm_plus t1' t2
   | ST_Plus2 : forall v1 t2 t2',
       value v1 ->
-      t2 ==> t2' ->
-      tm_plus v1 t2 ==> tm_plus v1 t2'
+      t2 ===> t2' ->
+      tm_plus v1 t2 ===> tm_plus v1 t2'
 
-  where " t '==>' t' " := (step t t').
+  where " t '===>' t' " := (step t t').
 
 Lemma value_not_same_as_normal_form :
   exists t, value t /\ ~ normal_form step t.
@@ -334,16 +334,16 @@ Module Temp3.
 Inductive value : tm -> Prop :=
   | v_const : forall n, value (tm_const n).
 
-(*Reserved Notation " t '==>' t' " (at level 40).*)
+(*Reserved Notation " t '===>' t' " (at level 40).*)
 
 Inductive step : tm -> tm -> Prop :=
   | ST_PlusConstConst : forall n1 n2,
-      tm_plus (tm_const n1) (tm_const n2) ==> tm_const (plus n1 n2)
+      tm_plus (tm_const n1) (tm_const n2) ===> tm_const (plus n1 n2)
   | ST_Plus1 : forall t1 t1' t2,
-      t1 ==> t1' ->
-      tm_plus t1 t2 ==> tm_plus t1' t2
+      t1 ===> t1' ->
+      tm_plus t1 t2 ===> tm_plus t1' t2
 
-  where " t '==>' t' " := (step t t').
+  where " t '===>' t' " := (step t t').
 
 Lemma value_not_same_as_normal_form:
    exists t, ~ value t /\ normal_form step t.
@@ -374,21 +374,21 @@ Inductive value : tm -> Prop :=
 
 Inductive step : tm -> tm -> Prop :=
    | ST_IfTrue : forall t1 t2,
-      tm_if tm_true t1 t2 ==> t1
+      tm_if tm_true t1 t2 ===> t1
    | ST_IfFalse : forall t1 t2,
-      tm_if tm_false t1 t2 ==> t2
+      tm_if tm_false t1 t2 ===> t2
    | ST_If : forall t1 t1' t2 t3,
-      t1 ==> t1' ->
-         tm_if t1 t2 t3 ==> tm_if t1' t2 t3
+      t1 ===> t1' ->
+         tm_if t1 t2 t3 ===> tm_if t1' t2 t3
 
-   where " t '==>' t' " := (step t t').
+   where " t '===>' t' " := (step t t').
 
 Example bool_step_prop3 :
      tm_if
        (tm_if tm_true tm_true tm_true)
        (tm_if tm_true tm_true tm_true)
        tm_false
-   ==>
+   ===>
      tm_if
        tm_true
        (tm_if tm_true tm_true tm_true)
@@ -399,7 +399,7 @@ apply ST_IfTrue.
 Qed.
 
 Theorem strong_progress: forall t,
-        value t \/ (exists t', t ==> t').
+        value t \/ (exists t', t ===> t').
 Proof.
 induction t.
  left.
@@ -462,24 +462,24 @@ Module Temp5.
 
 Inductive step : tm -> tm -> Prop :=
    | ST_IfTrue : forall t1 t2,
-      tm_if tm_true t1 t2 ==> t1
+      tm_if tm_true t1 t2 ===> t1
    | ST_IfFalse : forall t1 t2,
-      tm_if tm_false t1 t2 ==> t2
+      tm_if tm_false t1 t2 ===> t2
    | ST_If : forall t1 t1' t2 t3,
-      t1 ==> t1' ->
-         tm_if t1 t2 t3 ==> tm_if t1' t2 t3
+      t1 ===> t1' ->
+         tm_if t1 t2 t3 ===> tm_if t1' t2 t3
    | ST_ShortCut : forall v t,
       value v ->
-         tm_if t v v ==> v
+         tm_if t v v ===> v
 
-   where " t '==>' t' " := (step t t').
+   where " t '===>' t' " := (step t t').
 
 Definition bool_step_prop4 :=
          tm_if
             (tm_if tm_true tm_true tm_true)
             tm_false
             tm_false
-     ==>
+     ===>
          tm_false.
 
 Example bool_step_prop4_holds : 
@@ -491,7 +491,7 @@ Proof.
 Qed.
 
 Theorem strong_progress: forall t,
-        value t \/ (exists t', t ==> t').
+        value t \/ (exists t', t ===> t').
 Proof.
    induction t.
  left.
@@ -521,13 +521,13 @@ End Temp4.
 
 Definition stepmany := refl_step_closure step.
 
-Notation " t '==>*' t' " := (stepmany t t') (at level 40).
+Notation " t '===>*' t' " := (stepmany t t') (at level 40).
 
 Lemma test_stepmany_1:
    tm_plus
       (tm_plus (tm_const 0) (tm_const 3))
       (tm_plus (tm_const 2) (tm_const 4))
-      ==>*
+      ===>*
          tm_const (plus (plus 0 3) (plus 2 4)).
 Proof.
    eapply rsc_step. apply ST_Plus1. apply ST_PlusConstConst.
@@ -537,14 +537,14 @@ Proof.
   apply rsc_refl. Qed.
 
 Lemma test_stepmany_2:
-   tm_const 3 ==>* tm_const 3.
+   tm_const 3 ===>* tm_const 3.
 Proof.
    eapply rsc_refl.
 Qed.
 
 Lemma test_stepmany_3:
    tm_plus (tm_const 0) (tm_const 3)
-      ==>*
+      ===>*
    tm_plus (tm_const 0) (tm_const 3).
 Proof.
    eapply rsc_refl.
@@ -556,7 +556,7 @@ Lemma test_stepmany_4:
       (tm_plus
          (tm_const 2)
          (tm_plus (tm_const 0) (tm_const 3)))
-   ==>*
+   ===>*
       tm_plus
          (tm_const 0)
          (tm_const (plus 2 (plus 0 3))).
@@ -582,7 +582,7 @@ Qed.
 Definition step_normal_form := normal_form step.
 
 Definition normal_form_of (t t' : tm) :=
-  (t ==>* t' /\ step_normal_form t').
+  (t ===>* t' /\ step_normal_form t').
 
    (*
 Theorem normal_forms_unique:
@@ -620,8 +620,8 @@ Definition normalizing {X:Type} (R:relation X) :=
          (refl_step_closure R) t t' /\ normal_form R t'.
 
 Lemma stepmany_congr_1 : forall t1 t1' t2,
-      t1 ==>* t1' ->
-         tm_plus t1 t2 ==>* tm_plus t1' t2.
+      t1 ===>* t1' ->
+         tm_plus t1 t2 ===>* tm_plus t1' t2.
 Proof.
 intros t1 t1' t2 H.
 rsc_cases (induction H) Case.
@@ -636,8 +636,8 @@ Qed.
 
 Lemma stepmany_congr2 : forall t1 t2 t2',
       value t1 ->
-         t2 ==>* t2' ->
-            tm_plus t1 t2 ==>* tm_plus t1 t2'.
+         t2 ===>* t2' ->
+            tm_plus t1 t2 ===>* tm_plus t1 t2'.
 Proof.
 intros t1 t2 t2'.
 intros H1.
@@ -696,6 +696,6 @@ Proof.
 
    (*
 Theorem eval__stepmany: forall t v,
-  eval t v -> t ==>* v.
+  eval t v -> t ===>* v.
 Proof.   
 *)

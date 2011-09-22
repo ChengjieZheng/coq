@@ -12,6 +12,8 @@ Tactic Notation "normalize" :=
                       [ (eauto 10; fail) | (instantiate; simpl)]);
       apply rsc_refl.
 
+Module Types.
+
 Inductive tm : Type :=
   | tm_true : tm
   | tm_false : tm
@@ -34,37 +36,37 @@ Definition value (t:tm) := bvalue t \/ nvalue t.
 Hint Constructors bvalue nvalue.
 Hint Unfold value.
 
-Reserved Notation "t1 '=>' t2" (at level 40).
+Reserved Notation "t1 '==>' t2" (at level 40).
 
 Inductive step : tm -> tm -> Prop :=
   | ST_IfTrue : forall t1 t2,
-      (tm_if tm_true t1 t2) => t1
+      (tm_if tm_true t1 t2) ==> t1
   | ST_IfFalse : forall t1 t2,
-      (tm_if tm_false t1 t2) => t2
+      (tm_if tm_false t1 t2) ==> t2
   | ST_If : forall t1 t1' t2 t3,
-      t1 => t1' ->
-      (tm_if t1 t2 t3) => (tm_if t1' t2 t3)
+      t1 ==> t1' ->
+      (tm_if t1 t2 t3) ==> (tm_if t1' t2 t3)
   | ST_Succ : forall t1 t1',
-      t1 => t1' ->
-      (tm_succ t1) => (tm_succ t1')
+      t1 ==> t1' ->
+      (tm_succ t1) ==> (tm_succ t1')
   | ST_PredZero :
-      (tm_pred tm_zero) => tm_zero
+      (tm_pred tm_zero) ==> tm_zero
   | ST_PredSucc : forall t1,
       nvalue t1 ->
-      (tm_pred (tm_succ t1)) => t1
+      (tm_pred (tm_succ t1)) ==> t1
   | ST_Pred : forall t1 t1',
-      t1 => t1' ->
-      (tm_pred t1) => (tm_pred t1')
+      t1 ==> t1' ->
+      (tm_pred t1) ==> (tm_pred t1')
   | ST_IszeroZero :
-      (tm_iszero tm_zero) => tm_true
+      (tm_iszero tm_zero) ==> tm_true
   | ST_IszeroSucc : forall t1,
        nvalue t1 ->
-      (tm_iszero (tm_succ t1)) => tm_false
+      (tm_iszero (tm_succ t1)) ==> tm_false
   | ST_Iszero : forall t1 t1',
-      t1 => t1' ->
-      (tm_iszero t1) => (tm_iszero t1')
+      t1 ==> t1' ->
+      (tm_iszero t1) ==> (tm_iszero t1')
 
-where "t1 '=>' t2" := (step t1 t2).
+where "t1 '==>' t2" := (step t1 t2).
 
 Tactic Notation "step_cases" tactic(first) ident(c) :=
   first;
@@ -435,7 +437,7 @@ Qed.
 
 Theorem progress : forall t T,
   has_type t T ->
-  value t \/ exists t', t => t'.
+  value t \/ exists t', t ==> t'.
 Proof with auto.
   intros t T HT.
   has_type_cases (induction HT) Case...
@@ -517,7 +519,7 @@ Qed.
 
 Theorem preservation : forall t t' T,
   has_type t T ->
-  t => t' ->
+  t ==> t' ->
   has_type t' T.
 Proof with auto.
   intros t t' T HT HE.
@@ -572,7 +574,7 @@ Qed.
 
 Theorem preservation' : forall t t' T,
   has_type t T ->
-  t => t' ->
+  t ==> t' ->
   has_type t' T.
 Proof with eauto.
 
@@ -641,15 +643,15 @@ induction H.
 Qed.
 
 Definition stepmany := (refl_step_closure step).
-Notation "t1 '=>*' t2" := (stepmany t1 t2) (at level 40).
+Notation "t1 '==>*' t2" := (stepmany t1 t2) (at level 40).
 
 Corollary soundness : forall t t' T,
   has_type t T ->
-  t =>* t' ->
+  t ==>* t' ->
   ~(stuck t').
 Proof.
   intros t t' T HT P. induction P; intros [R S].
   destruct (progress x T HT); auto.
   apply IHP. apply (preservation x y T HT H).
   unfold stuck. split; auto. Qed.
-
+End Types.
